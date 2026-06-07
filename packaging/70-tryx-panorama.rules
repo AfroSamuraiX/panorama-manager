@@ -1,0 +1,20 @@
+# TRYX Panorama AIO cooler — udev access rule
+#
+# Grants the logged-in desktop user non-root access to the cooler:
+#   * the raw USB device — used by `adb` for media push to /sdcard/pcMedia/
+#   * the CDC-ACM tty    — used for the device protocol (brightness, screen, …)
+#
+# `TAG+="uaccess"` lets systemd-logind apply an ACL for the user of the
+# active session — no group management, no distro-specific group name, no
+# logout/login.
+#
+# Match: vendor 0x18d1 (Google) + product id 0x2d00–0x2d05. That range is
+# Google's Android Open Accessory (AOA) PID block — the exact value encodes
+# which interfaces the firmware exposes, so it can differ across Panorama
+# models / firmware revisions. Matching the whole range covers the family
+# without grabbing a normal Android phone (a phone enumerates outside the
+# 0x2d0x AOA range unless explicitly switched into accessory mode). This is
+# the same filter panorama-core's transport discovery uses.
+
+SUBSYSTEM=="usb", ATTR{idVendor}=="18d1", ATTR{idProduct}=="2d0[0-5]", TAG+="uaccess"
+SUBSYSTEM=="tty", SUBSYSTEMS=="usb", ATTRS{idVendor}=="18d1", ATTRS{idProduct}=="2d0[0-5]", TAG+="uaccess"

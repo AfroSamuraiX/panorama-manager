@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-repo="${PANORAMA_REPO:-bhornsby/panorama-mgr}"
+repo="${PANORAMA_REPO:-AfroSamuraiX/panorama-manager}"
 install_dir="${INSTALL_DIR:-$HOME/.local/bin}"
 version="${PANORAMA_VERSION:-}"
 service_dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"

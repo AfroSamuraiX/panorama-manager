@@ -1,0 +1,29 @@
+# systemd --user unit for the pctl keepalive/metrics daemon.
+#
+# Install:
+#   install pctl to ~/.local/bin/pctl first (see README end user flow)
+#   mkdir -p ~/.config/systemd/user
+#   cp packaging/panorama.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now panorama
+#   journalctl --user -u panorama -f      # follow logs
+#
+# After reinstalling `pctl`, restart the service so the running daemon picks up
+# the new binary:
+#   systemctl --user restart panorama
+
+[Unit]
+Description=TRYX Panorama cooler keepalive and metrics daemon
+# Avoid restart-looping before the session (and udev ACLs) are in place.
+After=graphical-session.target
+
+[Service]
+Type=notify
+NotifyAccess=main
+ExecStart=%h/.local/bin/pctl daemon
+Restart=on-failure
+RestartSec=5
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=default.target

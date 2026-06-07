@@ -1,0 +1,31 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/panorama-core",
+    "crates/panorama-ctl",
+]
+exclude = [
+    "crates/panorama-gui/src-tauri",
+]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+authors = ["Afro"]
+
+[workspace.dependencies]
+panorama-core = { path = "crates/panorama-core" }
+
+anyhow = "1"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4", features = ["derive"] }
+serialport = "4.9"
+chrono = "0.4"
+fs4 = "1"
+ctrlc = { version = "3", features = ["termination"] }
+shlex = "2"
+humansize = "2"

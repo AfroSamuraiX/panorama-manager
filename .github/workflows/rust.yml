@@ -1,0 +1,128 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "**" ]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+  pull_request:
+    branches: [ "main" ]
+
+concurrency:
+  group: rust-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  detect-changes:
+    name: Detect code changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect non-docs changes
+        id: filter
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+          else
+            base="${{ github.event.before }}"
+            head="${{ github.sha }}"
+          fi
+          # Unknown base (new branch, first push) — build to be safe.
+          if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "Base commit unavailable — running the build."
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only "$base" "$head")
+          echo "Changed files:"
+          echo "$changed"
+          if echo "$changed" | grep -qvE '(\.md$|^docs/|^LICENSE$)'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "Documentation-only change — Rust build skipped."
+          fi
+
+  test:
+    name: Rust tests
+    runs-on: ubuntu-latest
+    needs:
+      - detect-changes
+    if: needs.detect-changes.outputs.code == 'true'
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libudev-dev
+
+      - name: Run tests
+        run: cargo test --verbose
+
+  build:
+    name: Rust build (PR to main)
+    runs-on: ubuntu-latest
+    needs:
+      - detect-changes
+    if: needs.detect-changes.outputs.code == 'true' && github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libudev-dev
+
+      - name: Build
+        run: cargo build --verbose
+
+  required:
+    name: Rust required checks
+    runs-on: ubuntu-latest
+    needs:
+      - detect-changes
+      - test
+      - build
+    if: always()
+
+    steps:
+      - name: Verify required Rust checks
+        run: |
+          echo "detect-changes: ${{ needs.detect-changes.result }}"
+          echo "code changed:    ${{ needs.detect-changes.outputs.code }}"
+          echo "test:            ${{ needs.test.result }}"
+          echo "build:           ${{ needs.build.result }}"
+
+          if [ "${{ needs.detect-changes.result }}" != "success" ]; then
+            echo "Detect code changes job did not pass."
+            exit 1
+          fi
+
+          if [ "${{ needs.detect-changes.outputs.code }}" != "true" ]; then
+            echo "Documentation-only change; Rust test/build jobs were not required."
+            exit 0
+          fi
+
+          if [ "${{ needs.test.result }}" != "success" ]; then
+            echo "Rust tests did not pass."
+            exit 1
+          fi
+
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ needs.build.result }}" != "success" ]; then
+            echo "Rust PR build did not pass."
+            exit 1
+          fi

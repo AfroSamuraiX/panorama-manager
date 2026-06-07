@@ -11,7 +11,7 @@ While releases are in 0.x, interfaces may still change between releases.
 ## Supported models
 
 `panorama-manager` targets the TRYX Panorama family. The base Tryx Panorama 360 is hardware-verified.
-Other models are expected to share the protocol but there is a still a need for reporting and validation.
+Other models are expected to share the protocol, but there is still a need for reporting and validation.
 
 | Model                   | Hardware-verified |
 |-------------------------|-------------------|
@@ -24,7 +24,7 @@ If you test on an unverified model, reports are welcome. Please update the [Test
 ## Features
 
 - Installer for CLI and GUI binaries
-- Device info + diagnostics (`pctl info`, `pctl doctor`)
+- Device info and diagnostics (`pctl info`, `pctl doctor`)
 - Brightness, fan-LCD speed, sleep/display controls
 - Media upload + display control (single/split-screen)
 - Tauri desktop GUI for overview and display editing
@@ -165,6 +165,12 @@ bash /tmp/panorama-manager-teardown.sh
 
 ### Developer flow (source install)
 
+For extra developer information see :
+* **[docs/development.md](docs/development.md)**.
+*   **[docs/adb-protocol.md](docs/adb-protocol.md)**.
+*   **[docs/display-capabilities.md](docs/display-capabilities.md)**.
+*   **[docs/packaging.md](docs/packaging.md)**.
+
 For contributors or local development from source:
 
 ```bash
@@ -264,8 +270,7 @@ Install the package for your distro and re-run `pctl doctor`.
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) and
-[docs/development.md](docs/development.md) for build, test, and architecture details.
+Contributions are welcome. See docs for architecture details.
 
 ## Disclaimer
 

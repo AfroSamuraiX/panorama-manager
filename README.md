@@ -77,10 +77,8 @@ Runtime dependencies:
 
 ### GUI 
 
-GUI runtime dependencies are the platform WebKitGTK/GTK libraries required by
-Tauri v2. The GUI binary links against GTK 3, GDK Pixbuf, Cairo, Pango,
-WebKitGTK 4.1, JavaScriptCoreGTK 4.1, and libsoup 3 through the distro runtime.
-
+GUI runtime dependencies are the `WebKitGTK/GTk` libraries required by Tauri V2. The GUI binary links against
+`GTK3`, `GDK Pixbuf`, `Cairo`, `Pango`, `WebKitGTK 4.1`, `JavaScriptCoreGTK 4.1`, and `libsoup 3` through the distro runtime.
 
 ## Installation
 

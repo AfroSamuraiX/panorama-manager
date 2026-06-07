@@ -35,13 +35,6 @@ If you test on an unverified model, reports are welcome. Please update the [Test
 
 ## Requirements
 
-
-> ⚠️ **Package naming note:** confirmed against the Arch package index, the Ubuntu 24.04 LTS package index, the Fedora package index, and the Bazzite package-layering docs.
-> `adb` is `android-tools` on Arch and `adb` on Ubuntu 24.04.
-> `adb` is `android-tools` on Fedora and Bazzite.
-> `glxinfo` is provided by `mesa-utils` on both Arch and Ubuntu 24.04.
-> Fedora and Bazzite provide `glxinfo` through `mesa-demos`.
-
 Verified prereq matrix:
 
 | Distro / family  | Package manager | Required packages                                    | Optional packages | Notes                                     |
@@ -164,10 +157,10 @@ bash /tmp/panorama-manager-teardown.sh
 ### Developer flow (source install)
 
 For extra developer information see :
-* **[docs/development.md](docs/development.md)**.
-*   **[docs/adb-protocol.md](docs/adb-protocol.md)**.
-*   **[docs/display-capabilities.md](docs/display-capabilities.md)**.
-*   **[docs/packaging.md](docs/packaging.md)**.
+*   **[docs/development.md](docs/development.md)**
+*   **[docs/adb-protocol.md](docs/adb-protocol.md)**
+*   **[docs/display-capabilities.md](docs/display-capabilities.md)**
+*   **[docs/packaging.md](docs/packaging.md)**
 
 For contributors or local development from source:
 
@@ -253,7 +246,7 @@ If you've tested on a different system, feel free to add yours via PR.
 
 Install the package for your distro and re-run `pctl doctor`.
 
-> ⚠️ **Package naming note:** confirmed against Arch, Ubuntu 24.04, Fedora, and Bazzite docs/package indexes.
+> ⚠️ Confirmed against Arch, Ubuntu 24.04, Fedora, and Bazzite docs/package indexes.
 > `adb` is `android-tools` on Arch, Fedora, and Bazzite, and `adb` on Ubuntu 24.04.
 
 #### Device is not detected
@@ -263,7 +256,6 @@ Install the package for your distro and re-run `pctl doctor`.
 3. If you used the release installer, rerun the installer as your normal user so it can refresh the managed udev rule and user service
 4. If you installed manually from source or a raw binary, run `sudo pctl setup`
 5. Reboot the system and run `pctl doctor` again
-
 
 
 ## Contributing

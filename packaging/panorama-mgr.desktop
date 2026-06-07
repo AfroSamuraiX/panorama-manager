@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=panorama-mgr
+Comment=TRYX Panorama cooler display manager
+Exec=panorama-gui
+Icon=panorama-mgr
+Terminal=false
+Categories=Utility;HardwareSettings;

@@ -9,10 +9,25 @@
 
 use std::process::Command;
 use std::sync::Mutex;
+use std::time::Duration;
 
 const MEDIA_PATH: &str = "/sdcard/pcMedia";
 const PANORAMA_PRODUCT_TAG: &str = "product:cm01";
 const PANORAMA_KEYWORDS: &[&str] = &["cm01", "tryx", "panorama-mgr"];
+const ADB_RECOVERY_POLL_DELAY: Duration = Duration::from_millis(500);
+const ADB_RECOVERY_POLLS: usize = 2;
+const RECOVERY_FOR_TRANSIENT_STATE: &[&[&str]] = &[
+    &["reconnect", "offline"],
+    &["reconnect"],
+    &["kill-server"],
+    &["start-server"],
+];
+const RECOVERY_FOR_EMPTY_OR_UNREACHABLE: &[&[&str]] = &[
+    &["start-server"],
+    &["reconnect"],
+    &["kill-server"],
+    &["start-server"],
+];
 
 /// Outcome of [`Adb::validate_device`] — distinguishes "no device" from
 /// "wrong device" so callers can produce useful error messages.
@@ -61,6 +76,18 @@ pub enum AdbDiagnosis {
     PanoramaReady { serial: String },
 }
 
+impl AdbDiagnosis {
+    pub fn is_recoverable(&self) -> bool {
+        matches!(
+            self,
+            Self::ServerUnreachable(_)
+                | Self::NoDevicesListed
+                | Self::PanoramaOffline { .. }
+                | Self::PanoramaUnauthorized
+        )
+    }
+}
+
 pub struct Adb {
     cached_serial: Mutex<String>,
 }
@@ -107,6 +134,31 @@ impl Adb {
         let mut combined = output.stdout;
         combined.extend_from_slice(&output.stderr);
         diagnose_from_devices_output(&String::from_utf8_lossy(&combined))
+    }
+
+    /// Attempt bounded host-side adb recovery for transient connection states.
+    ///
+    /// This keeps the normal one-shot `diagnose()` behavior available to CLI
+    /// callers like `doctor`, while GUI/media paths can opt into a short
+    /// recovery sequence before surfacing an error to the user.
+    pub fn recover_device_connection(&self) -> AdbDiagnosis {
+        let mut diagnosis = self.diagnose();
+        if self.transport_ready(&diagnosis) {
+            return diagnosis;
+        }
+        if !matches!(diagnosis, AdbDiagnosis::PanoramaReady { .. }) && !diagnosis.is_recoverable() {
+            return diagnosis;
+        }
+
+        for args in recovery_commands(&diagnosis) {
+            let _ = Self::run_host(args);
+            diagnosis = self.wait_for_ready_diagnosis();
+            if self.transport_ready(&diagnosis) {
+                return diagnosis;
+            }
+        }
+
+        diagnosis
     }
 
     /// Confirm the connected device is actually a Panorama.
@@ -206,23 +258,44 @@ impl Adb {
             .unwrap_or(false)
     }
 
+    fn wait_for_ready_diagnosis(&self) -> AdbDiagnosis {
+        let mut diagnosis = AdbDiagnosis::NoDevicesListed;
+        for attempt in 0..ADB_RECOVERY_POLLS {
+            diagnosis = self.diagnose();
+            if self.transport_ready(&diagnosis) {
+                return diagnosis;
+            }
+            if attempt + 1 < ADB_RECOVERY_POLLS {
+                std::thread::sleep(ADB_RECOVERY_POLL_DELAY);
+            }
+        }
+        diagnosis
+    }
+
+    fn transport_ready(&self, diagnosis: &AdbDiagnosis) -> bool {
+        let AdbDiagnosis::PanoramaReady { serial } = diagnosis else {
+            return false;
+        };
+
+        self.set_cached_serial(serial);
+        matches!(self.transport_state(serial).as_deref(), Some("device"))
+    }
+
+    fn transport_state(&self, serial: &str) -> Option<String> {
+        let out = Self::run_with_serial(serial, &["get-state"])?;
+        if !out.success {
+            return None;
+        }
+        Some(out.text.trim().to_string())
+    }
+
     fn run(&self, args: &[&str]) -> Option<AdbOutput> {
         let serial = self.ensure_serial();
-        let mut cmd = Command::new("adb");
         let skip_serial = args.first().map(|a| *a == "devices").unwrap_or(true);
         if !serial.is_empty() && !skip_serial {
-            cmd.arg("-s").arg(&serial);
+            return Self::run_with_serial(&serial, args);
         }
-        cmd.args(args);
-
-        let output = cmd.output().ok()?;
-        let success = output.status.success();
-        let mut combined = output.stdout;
-        combined.extend_from_slice(&output.stderr);
-        Some(AdbOutput {
-            success,
-            text: String::from_utf8_lossy(&combined).into_owned(),
-        })
+        Self::run_host(args)
     }
 
     fn ensure_serial(&self) -> String {
@@ -233,6 +306,26 @@ impl Adb {
             }
         }
         guard.clone()
+    }
+
+    fn set_cached_serial(&self, serial: &str) {
+        let mut guard = self.cached_serial.lock().expect("mutex poisoned");
+        *guard = serial.to_string();
+    }
+
+    fn run_host(args: &[&str]) -> Option<AdbOutput> {
+        let output = Command::new("adb").args(args).output().ok()?;
+        Some(adb_output(output))
+    }
+
+    fn run_with_serial(serial: &str, args: &[&str]) -> Option<AdbOutput> {
+        let output = Command::new("adb")
+            .arg("-s")
+            .arg(serial)
+            .args(args)
+            .output()
+            .ok()?;
+        Some(adb_output(output))
     }
 }
 
@@ -247,6 +340,29 @@ fn find_panorama_serial_via_adb() -> Option<String> {
     let mut text = output.stdout;
     text.extend_from_slice(&output.stderr);
     find_panorama_serial(&String::from_utf8_lossy(&text))
+}
+
+fn recovery_commands(diagnosis: &AdbDiagnosis) -> &'static [&'static [&'static str]] {
+    match diagnosis {
+        AdbDiagnosis::PanoramaOffline { .. } | AdbDiagnosis::PanoramaUnauthorized => {
+            RECOVERY_FOR_TRANSIENT_STATE
+        }
+        AdbDiagnosis::PanoramaReady { .. } => RECOVERY_FOR_TRANSIENT_STATE,
+        AdbDiagnosis::NoDevicesListed | AdbDiagnosis::ServerUnreachable(_) => {
+            RECOVERY_FOR_EMPTY_OR_UNREACHABLE
+        }
+        AdbDiagnosis::NotInstalled | AdbDiagnosis::NonPanoramaOnly { .. } => &[],
+    }
+}
+
+fn adb_output(output: std::process::Output) -> AdbOutput {
+    let success = output.status.success();
+    let mut combined = output.stdout;
+    combined.extend_from_slice(&output.stderr);
+    AdbOutput {
+        success,
+        text: String::from_utf8_lossy(&combined).into_owned(),
+    }
 }
 
 /// Parse `adb devices -l` output and return the serial of a connected

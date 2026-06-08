@@ -20,6 +20,7 @@
   type MediaList = {
     files: string[];
     message: string | null;
+    retryable: boolean;
   };
 
   type MediaPreview = {
@@ -60,11 +61,18 @@
   ];
 
   const badgeOptions = ["CPU Badge", "GPU Badge"];
+  const MEDIA_RETRY_DELAY_MS = 1000;
+  const MEDIA_STARTUP_MAX_ATTEMPTS = 6;
+
+  let mediaRequestToken = 0;
 
   onMount(() => {
+    const requestToken = ++mediaRequestToken;
     void refreshStatus();
-    void refreshMediaList();
-    return () => {};
+    void refreshMediaList({ startup: true, requestToken });
+    return () => {
+      mediaRequestToken += 1;
+    };
   });
 
   async function refreshStatus() {
@@ -82,15 +90,40 @@
     }
   }
 
-  async function refreshMediaList() {
-    try {
-      const media = await invoke<MediaList>("media_list");
-      mediaFiles = media.files;
-      mediaMessage = media.message;
-    } catch (err) {
-      mediaFiles = [];
-      mediaMessage = err instanceof Error ? err.message : String(err);
+  async function refreshMediaList(options: { startup?: boolean; requestToken?: number } = {}) {
+    const startup = options.startup ?? false;
+    const requestToken = options.requestToken ?? ++mediaRequestToken;
+    const maxAttempts = startup ? MEDIA_STARTUP_MAX_ATTEMPTS : 1;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      try {
+        const media = await invoke<MediaList>("media_list");
+        if (requestToken !== mediaRequestToken) return;
+
+        mediaFiles = media.files;
+        mediaMessage = media.message;
+
+        if (!startup || !media.retryable || media.message === null || attempt === maxAttempts - 1) {
+          return;
+        }
+      } catch (err) {
+        if (requestToken !== mediaRequestToken) return;
+
+        mediaFiles = [];
+        mediaMessage = err instanceof Error ? err.message : String(err);
+
+        if (!startup || attempt === maxAttempts - 1) {
+          return;
+        }
+      }
+
+      await delay(MEDIA_RETRY_DELAY_MS);
+      if (requestToken !== mediaRequestToken) return;
     }
+  }
+
+  function delay(ms: number) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
   }
 
   function cloneDisplay(display: CurrentDisplay): CurrentDisplay {

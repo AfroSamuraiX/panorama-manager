@@ -43,6 +43,7 @@ struct DeviceWarning {
 struct MediaList {
     files: Vec<String>,
     message: Option<String>,
+    retryable: bool,
 }
 
 #[derive(Serialize)]
@@ -236,21 +237,73 @@ fn cooling_status() -> Result<CoolingStatus, String> {
 #[tauri::command]
 fn media_list() -> Result<MediaList, String> {
     let adb = panorama_core::adb::Adb::new();
-    if !adb.is_device_connected() {
-        return Ok(MediaList {
-            files: Vec::new(),
-            message: Some("No Panorama device detected by adb".to_string()),
-        });
+    let diagnosis = adb.recover_device_connection();
+    match diagnosis {
+        panorama_core::adb::AdbDiagnosis::PanoramaReady { .. } => {}
+        panorama_core::adb::AdbDiagnosis::NotInstalled => {
+            return Ok(MediaList {
+                files: Vec::new(),
+                message: Some("`adb` is not installed or not in PATH".to_string()),
+                retryable: false,
+            });
+        }
+        panorama_core::adb::AdbDiagnosis::NonPanoramaOnly { detected } => {
+            return Ok(MediaList {
+                files: Vec::new(),
+                message: Some(format!(
+                    "adb sees other devices but no Panorama ({detected})"
+                )),
+                retryable: false,
+            });
+        }
+        panorama_core::adb::AdbDiagnosis::NoDevicesListed => {
+            return Ok(MediaList {
+                files: Vec::new(),
+                message: Some("No Panorama device detected by adb yet".to_string()),
+                retryable: true,
+            });
+        }
+        panorama_core::adb::AdbDiagnosis::PanoramaOffline { state } => {
+            return Ok(MediaList {
+                files: Vec::new(),
+                message: Some(format!(
+                    "Panorama is visible to adb but currently in '{state}' state"
+                )),
+                retryable: true,
+            });
+        }
+        panorama_core::adb::AdbDiagnosis::PanoramaUnauthorized => {
+            return Ok(MediaList {
+                files: Vec::new(),
+                message: Some(
+                    "Panorama is visible to adb but currently in 'unauthorized' state".to_string(),
+                ),
+                retryable: true,
+            });
+        }
+        panorama_core::adb::AdbDiagnosis::ServerUnreachable(err) => {
+            return Ok(MediaList {
+                files: Vec::new(),
+                message: Some(format!(
+                    "`adb` is installed but not responding cleanly: {err}"
+                )),
+                retryable: true,
+            });
+        }
     }
 
     match adb.list_media() {
         Some(files) => Ok(MediaList {
             files,
             message: None,
+            retryable: false,
         }),
         None => Ok(MediaList {
             files: Vec::new(),
-            message: Some("Could not list media from /sdcard/pcMedia".to_string()),
+            message: Some(
+                "Connected to Panorama, but could not list media from /sdcard/pcMedia".to_string(),
+            ),
+            retryable: true,
         }),
     }
 }

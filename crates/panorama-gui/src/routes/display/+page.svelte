@@ -235,6 +235,7 @@
       pane2Metrics: display.pane2Metrics,
       pane1Badges: display.pane1Badges,
       pane2Badges: display.pane2Badges,
+      metricsColor: display.metricsColor,
       metricsAlign: display.metricsAlign,
       metricsPosition: display.metricsPosition,
       displayFilter: display.displayFilter,

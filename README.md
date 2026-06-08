@@ -70,7 +70,7 @@ Runtime dependencies:
 
 ### GUI 
 
-GUI runtime dependencies are the `WebKitGTK/GTk` libraries required by Tauri V2. The GUI binary links against
+GUI runtime dependencies are the `WebKitGTK/GTK` libraries required by Tauri V2. The GUI binary links against
 `GTK3`, `GDK Pixbuf`, `Cairo`, `Pango`, `WebKitGTK 4.1`, `JavaScriptCoreGTK 4.1`, and `libsoup 3` through the distro runtime.
 
 ## Installation
@@ -102,7 +102,7 @@ Fedora 43/44:
 
 ```bash
 sudo dnf install android-tools ffmpeg-free webkit2gtk4.1 mesa-demos
-# Optional:
+# Optional: mesa-demos provides glxinfo
 ```  
 
 Bazzite:
@@ -125,7 +125,7 @@ The installer writes `pctl` and `panorama-gui` to `~/.local/bin`, installs the
 udev rule, writes the systemd user service, installs the GUI icon and desktop
 launcher, and starts the daemon.
 
-> If `~/.local/bin` is not already on your PATH`, add it before running `pctl` directly.
+> If `~/.local/bin` is not already on your `PATH`, add it before running `pctl` directly.
 
 The installer is intended to be idempotent: rerunning it replaces the same
 managed files in place, refreshes the same desktop entry and user service, and

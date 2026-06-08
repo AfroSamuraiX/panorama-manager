@@ -68,7 +68,7 @@ jobs:
           ls -lh dist/*"${version}"-linux-x86_64.tar.gz dist/*"${version}"-linux-x86_64.sha256
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-artifacts
           path: |
@@ -92,15 +92,15 @@ jobs:
           fetch-depth: 0
 
       - name: Download release artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: release-artifacts
           path: dist
 
       - name: Run semantic-release
-        uses: cycjimmy/semantic-release-action@v4
+        uses: cycjimmy/semantic-release-action@v6
         with:
-          semantic_version: 24
+          semantic_version: 25
           extra_plugins: |
             @semantic-release/commit-analyzer
             @semantic-release/release-notes-generator
